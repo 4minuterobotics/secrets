@@ -4,7 +4,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const encrypt = require ('mongoose-encryption');
+const md5 = require("md5"); // use this for stronger encryption with hashing with md5
+
+
 const port = 3000;
 
 const app = express();
@@ -20,9 +22,7 @@ mongoose.connect("mongodb://localhost:27017/userDB");
 
 
 
-
-
-//////////////////////////////////Schema for encrypted email/password authentication
+// /////////////////////////////////Schema for encrypted email/password authentication
 var userSchema = new mongoose.Schema({
     email: String,
     password: String
@@ -30,19 +30,13 @@ var userSchema = new mongoose.Schema({
 });
 
 
-
-// THIS ENCRYPTS THE DATABASE using the SECRET encryption key in the .env file and the password above
-userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
-
-
-
-
-
-
-
 //////////////////////////////CREATE MODEL
 
 const User = new mongoose.model("User", userSchema);
+
+
+
+
 
 
 
@@ -59,11 +53,16 @@ app.get("/register", function(req, res){
 });
 
 
+
+
+
 /////////////////////////////////////////signup for app with email and password
+
+// Register with stronger encryption using md5 hashing
 app.post("/register",function(req, res){
   const newUser = new User ({
     email: req.body.username,
-    password: req.body.password
+    password: md5(req.body.password) //peep the hashing
   });
 
   newUser.save(function(err){
@@ -79,7 +78,7 @@ app.post("/register",function(req, res){
 /////////////////////////////////////////login to app with email and password
 app.post("/login", function(req, res){
   const username = req.body.username;
-  const password = req.body.password;
+  const password = md5(req.body.password); // peep the hashing
 
   User.findOne({email: username}, function(err, foundUser){
     if (err){
