@@ -4,7 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const md5 = require("md5"); // use this for stronger encryption with hashing with md5
+const bcrypt = require("bcrypt"); // use this for even stronger encryption with hashing and salting rounds
+const saltRounds = 10; // there will be 2^10 rounds of salting the hash.
 
 
 const port = 3000;
@@ -58,36 +59,44 @@ app.get("/register", function(req, res){
 
 /////////////////////////////////////////signup for app with email and password
 
-// Register with stronger encryption using md5 hashing
+// Register with even stronger encryption using salting of hashes
 app.post("/register",function(req, res){
-  const newUser = new User ({
-    email: req.body.username,
-    password: md5(req.body.password) //peep the hashing
+
+  bcrypt.hash(req.body.password, saltRounds, function(err, hash) {  //bcrypt salting code
+
+    const newUser = new User ({
+      email: req.body.username,
+      password: hash //peep the hash
+    });
+
+    newUser.save(function(err){
+      if (err){
+        console.log(err);
+      }else{
+        res.render("secrets");
+      }
+    });
   });
 
-  newUser.save(function(err){
-    if (err){
-      console.log(err);
-    }else{
-      res.render("secrets");
-    }
-  });
+
 });
 
 
 /////////////////////////////////////////login to app with email and password
 app.post("/login", function(req, res){
   const username = req.body.username;
-  const password = md5(req.body.password); // peep the hashing
+  const password = req.body.password; // peep the hashing
 
   User.findOne({email: username}, function(err, foundUser){
     if (err){
       console.log(err);
     }else{
       if (foundUser){
-        if (foundUser.password === password){
-          res.render("secrets");
-        }
+        bcrypt.compare(password, foundUser.password, function(err, result) {  //bcrypt salting shit
+          if (result === true){
+            res.render("secrets");
+          }
+        });
       }
     }
   });
