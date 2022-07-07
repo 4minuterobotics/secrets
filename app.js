@@ -111,22 +111,48 @@ app.post("/register",function(req, res){
 
 
 /////////////////////////////////////////login to app with email and password
-app.post("/login", function(req, res){
-  const user = new User({
-    username: req.body.username,
-    password: req.body.password
-  });
 
-  req.login(user, function(err){
-    if (err){
-      console.log(err);
-    }else{
-      passport.authenticate("local")(req, res, function(){
-        res.redirect("/secrets");
-      });
+app.post("/login", function(req, res){
+  //check the DB to see if the username that was used to login exists in the DB
+  User.findOne({username: req.body.username}, function(err, foundUser){
+    //if username is found in the database, create an object called "user" that will store the username and password
+    //that was used to login
+    if(foundUser){
+    const user = new User({
+      username: req.body.username,
+      password: req.body.password
+    });
+      //use the "user" object that was just created to check against the username and password in the database
+      //in this case below, "user" will either return a "false" boolean value if it doesn't match, or it will
+      //return the user found in the database
+      passport.authenticate("local", function(err, user){
+        if(err){
+          console.log(err);
+        } else {
+          //this is the "user" returned from the passport.authenticate callback, which will be either
+          //a false boolean value if no it didn't match the username and password or
+          //a the user that was found, which would make it a truthy statement
+          if(user){
+            //if true, then log the user in, else redirect to login page
+            req.login(user, function(err){
+            res.redirect("/secrets");
+            });
+          } else {
+            res.redirect("/login");
+          }
+        }
+      })(req, res);
+    //if no username is found at all, redirect to login page.
+    } else {
+      //user does not exists
+      res.redirect("/login");
     }
   });
 });
+
+
+
+
 
 
 ///////////////////////////////////////logout app by deauthenticating user and ending the session
