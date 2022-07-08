@@ -9,6 +9,7 @@ const passport = require ("passport"); // peep the passport requirement
 const passportLocalMongoose = require("passport-local-mongoose"); // peep the passpot local mongoose requirement
 //passport-local doesn't need to be required here because we'll never refer to it in the code and plus it already comes inside of passport local mongoose ?
 const GoogleStrategy = require('passport-google-oauth20').Strategy; //this is for google authentication
+const FacebookStrategy = require ("passport-facebook").Strategy;//This is for facebook's authentication
 const findOrCreate = require("mongoose-findorcreate");
 
 
@@ -46,7 +47,8 @@ mongoose.connect("mongodb://localhost:27017/userDB");
 var userSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId: String //this line was added in order for a user who logged in with google to show up in the database
+    googleId: String, //this line was added in order for a user who logged in with google to show up in the database
+    facebookId: String //this line was added in order for a user who logged in with facebook to show up in the database
     // whatever else
 });
 
@@ -105,16 +107,35 @@ passport.use(new GoogleStrategy({
 ));
 
 
+
+///////////////////////////Facebook auth login code. IMPORTANT!!!!! Place below the serial and deserialization code and the app.use(session) shit
+passport.use(new FacebookStrategy({
+    clientID: process.env.CLIENT_ID_FB,
+    clientSecret: process.env.CLIENT_SECRET_FB,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    console.log(profile);
+    User.findOrCreate({ facebookId: profile.id }, function (err, user) {
+      return cb(err, user);
+    });
+  }
+));
+
+
+
+
 app.get("/", function(req, res){
   res.render("home");
 });
+
+
 
 
 //GET request to the path for the google login buttons
 app.get("/auth/google",
   passport.authenticate('google', { scope: ['profile'] }) // This basically says to use passport to authenticate the user with google's super secure strategy, which is above in the GoogleStategy code. When we hit up google, we'er gonna tell them what we want is the user's profile, which is their email and user id on google. this comes from https://www.passportjs.org/packages/passport-google-oauth20/
 );
-
 
 //The user gets sent to this GET route after attempting to login with their google accout
 app.get("/auth/google/secrets",
@@ -123,6 +144,24 @@ app.get("/auth/google/secrets",
     // Successful authentication, redirect to secrets.
     res.redirect("/secrets");
   });
+
+
+
+
+
+  //GET request to the path for the facebook login buttons
+  app.get('/auth/facebook',
+    passport.authenticate('facebook'));
+
+    //The user gets sent to this GET route after attempting to login with their facebook accout
+  app.get('/auth/facebook/secrets',
+    passport.authenticate('facebook', { failureRedirect: '/login' }),
+    function(req, res) {
+      // Successful authentication, redirect home.
+      res.redirect('/secrets');
+    });
+
+
 
 
 app.get("/login", function(req, res){
