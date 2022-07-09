@@ -48,7 +48,8 @@ var userSchema = new mongoose.Schema({
     email: String,
     password: String,
     googleId: String, //this line was added in order for a user who logged in with google to show up in the database
-    facebookId: String //this line was added in order for a user who logged in with facebook to show up in the database
+    facebookId: String, //this line was added in order for a user who logged in with facebook to show up in the database
+    secret: String // this will be what the user submits as a secret on the website
     // whatever else
 });
 
@@ -174,16 +175,54 @@ app.get("/register", function(req, res){
 });
 
 
-//Check to see if user is authenticated (logged in) before showing the logged in version of the website
+//when someone goes to the page with the secrets....
 app.get("/secrets", function (req,res){
-  if (req.isAuthenticated()){ //if the user is logged in...
-    res.render("secrets");
+  if (req.isAuthenticated()){ //Check to see if user is authenticated (logged in) before showing the logged in version of the website and if they're logged in...
+    User.find({"secret": {$ne:null}}, function(err, foundUsers){ //search through all the documents in the secrets collection and find all the users where the field named "secret" has an actual value by using the "is not null" code, meaning it contains some data. The explanation can be found here: https://stackoverflow.com/questions/4057196/how-do-you-query-for-is-not-null-in-mongo
+      if (err){
+        console.log(err);
+      }else{
+        if (foundUsers){ //if a user with data exiting in the "secret" field exists...
+          res.render("secrets", {usersWithSecrets: foundUsers}); //show the secrets.ejs page with everyone's secrets, and pass in a variable to the secrets.ejs page named 'usersWithSecrets' setting it equal to the foundUsers
+        }
+      }
+    });
   }else{ //if the user isn't logge in....
     res.redirect("/login");
   }
 });
 
 
+
+//what to do if some one tries to access the submit page where they can submit a secret
+app.get("/submit", function(req, res){
+  if (req.isAuthenticated()){ //if the user is logged in...
+    res.render("submit"); //show the submit page
+  }else{ //if the user isn't logge in....
+    res.redirect("/login"); //show the login page
+  }
+});
+
+
+
+//What to do if someone clicks the button to submit a secret
+app.post("/submit", function(req, res){
+  const submittedSecret = req.body.secret; //create a variable equal to what they posted
+  console.log (req.user); // this shows the ID of user and potentially their username if they created a profile locally
+
+  User.findById(req.user.id, function(err, foundUser){ //find the user who submitted the post by their ID and...
+    if (err){
+      console.log(err);
+    }else{
+      if (foundUser){ //once that user is found/identified, set the database value named "secret" equal to post they submitted and save it.
+        foundUser.secret = submittedSecret;
+        foundUser.save(function(){
+          res.redirect("/secrets");
+        });
+      }
+    }
+  });
+});
 
 
 /////////////////////////////////////////signup for app with email and password
